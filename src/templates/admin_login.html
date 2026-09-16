@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Login Admin - NeuroCheck</title>
+    <link rel="stylesheet" href="/static/index.css">
+</head>
+
+<body>
+    {% set active = 'admin_login' %}
+    {% include "_nav.html" %}
+
+    <div class="container" style="max-width:420px; padding-top:60px;">
+        <div class="card">
+            <h2>Login Admin</h2>
+            {% if error %}<div class="alert-info" style="background:#fdeaea;border-color:#f7c9c9;color:#b3261e;">{{
+                error }}</div>{% endif %}
+            <form method="post" action="/admin/login">
+                <div class="form-group"><label>Username</label><input type="text" name="username" required></div>
+                <div class="form-group"><label>Password</label><input type="password" name="password" required></div>
+                <button type="submit" class="btn btn-primary" style="width:100%;">Login</button>
+            </form>
+        </div>
+    </div>
+</body>
+
+</html>

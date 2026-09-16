@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Laporan Hasil Analisis - NeuroCheck</title>
+    <link rel="stylesheet" href="/static/index.css">
+</head>
+
+<body>
+    {% set active = 'report' %}
+    {% include "_nav.html" %}
+
+    <div class="container" style="padding:32px 24px; max-width:800px;">
+        <div style="margin-bottom:16px;">
+            {% if request.session.admin %}
+            <a href="/admin/dashboard" class="btn btn-outline">&larr; Admin Dashboard</a>
+            {% else %}
+            <a href="/patients/{{ r.nik }}" class="btn btn-outline">&larr; Kembali</a>
+            {% endif %}
+        </div>
+        <div class="card">
+            <h2 style="margin-bottom:0;">Laporan Hasil Skrining AI</h2>
+            <p style="color:var(--text-muted); margin-top:4px;">Citra MRI/CT Otak — NeuroCheck</p>
+
+            <a href="/patients/{{ r.nik }}/report/{{ r.prediction_id }}" class="btn btn-primary"
+                style="margin-top:12px; display:inline-block;">
+                &darr; Unduh Laporan (PDF)
+            </a>
+            <br></br>
+
+            <h3>I. Identitas Pasien</h3>
+            <p>Nama: <b>{{ r.nama_pasien }}</b> | NIK: {{ r.nik }}<br>
+                Tgl Lahir: {{ r.tanggal_lahir }} | Jenis Kelamin: {{ r.jenis_kelamin }}<br>
+                Alamat: {{ r.alamat or "-" }} | Telp: {{ r.no_telepon or "-" }}</p>
+
+            <h3>II. Informasi Pemeriksaan</h3>
+            <p>Tanggal Analisis: {{ r.upload_time }}<br>
+                File Citra: {{ r.filename }}<br>
+                Modalitas: {{ r.modalitas or "-" }} | Sequence/Detail: {{ r.sequence_type or "-" }}<br>
+                Precheck kualitas citra: <b>{{ "Valid — citra otak terkonfirmasi" if r.precheck_status == "valid" else
+                    "Tidak valid" }}</b>
+                (confidence {{ "%.1f"|format(r.precheck_confidence * 100) }}%)</p>
+
+            {% if r.prediction_label %}
+            <h3>III. Hasil Klasifikasi AI (Opini Sekunder)</h3>
+            <p>Prediksi Utama: <b>{{ r.prediction_label }}</b><br>
+                Tingkat keyakinan model: <b>{{ "%.2f"|format(r.prediction_confidence * 100) }}%</b></p>
+
+            <h3>IV. Rekomendasi Tindak Lanjut</h3>
+            <p>Hasil ini adalah opini sekunder dari AI. Segera konsultasikan ke dokter spesialis terkait untuk
+                konfirmasi diagnosis dan rencana penanganan lebih lanjut.</p>
+
+            <h3>V. Penjelasan Edukasi (AI)</h3>
+            <p>{{ r.gemini_explanation or "Penjelasan otomatis belum tersedia untuk hasil ini." }}</p>
+
+            <h3>VI. Peta Atensi Model (Explainable AI / Grad-CAM)</h3>
+            {% if r.gradcam_path %}
+            <img src="/outputs/{{ r.gradcam_path }}"
+                style="max-width:280px; border-radius:8px; border:1px solid var(--border-color);">
+            <p style="color:var(--text-muted); font-size:0.85rem;">Area merah/kuning menunjukkan region citra yang
+                paling memengaruhi keputusan model — alat bantu interpretasi, bukan diagnosis.</p>
+            {% else %}
+            <p style="color:var(--text-muted);">Peta atensi tidak tersedia untuk hasil ini.</p>
+            {% endif %}
+            {% else %}
+            <h3>III. Hasil Klasifikasi</h3>
+            <p>Citra yang diunggah tidak terdeteksi sebagai citra MRI/CT otak yang valid, sehingga klasifikasi tidak
+                dapat dilakukan.</p>
+            {% endif %}
+
+            <h3>VII. Catatan Klinis Dokter</h3>
+            <p>{{ r.catatan_dokter or "Belum ada catatan." }}</p>
+
+            <h3>VIII. Verifikasi &amp; Pengesahan</h3>
+            <p>Status saat ini: <b>{{ r.status_verifikasi or "Pending Review" }}</b><br>
+                {% if r.dokter_nama %}
+                Diverifikasi oleh: {{ r.dokter_nama }} (SIP: {{ r.dokter_sip or "-" }})<br>
+                Tanggal verifikasi: {{ r.tanggal_verifikasi }}
+                {% else %}
+                Belum ada verifikasi dari dokter penanggung jawab.
+                {% endif %}</p>
+
+            <form method="post" action="/records/{{ r.id }}/verify"
+                style="margin-top:12px; border-top:1px solid var(--border-color); padding-top:16px;">
+                <p style="font-weight:600; margin-bottom:10px;">Formulir Verifikasi (diisi Dokter Sp.Rad / Penanggung
+                    Jawab)</p>
+                <div class="form-row">
+                    <div class="form-group"><label>Nama Dokter</label><input type="text" name="dokter_nama"
+                            value="{{ r.dokter_nama or '' }}"></div>
+                    <div class="form-group"><label>No. SIP</label><input type="text" name="dokter_sip"
+                            value="{{ r.dokter_sip or '' }}"></div>
+                </div>
+                <div class="form-group">
+                    <label>Status Verifikasi</label>
+                    <select name="status_verifikasi">
+                        <option value="Pending Review" {% if r.status_verifikasi=="Pending Review" %}selected{% endif
+                            %}>Pending Review</option>
+                        <option value="Approved" {% if r.status_verifikasi=="Approved" %}selected{% endif %}>Approved
+                        </option>
+                        <option value="Diagnosa Dikonfirmasi" {% if r.status_verifikasi=="Diagnosa Dikonfirmasi"
+                            %}selected{% endif %}>Diagnosa Dikonfirmasi oleh Dokter</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Simpan Verifikasi</button>
+            </form>
+
+            <div class="alert-info" style="margin-top:20px;">
+                <b>Catatan Penting:</b> Laporan ini dihasilkan sistem AI sebagai alat bantu skrining awal, BUKAN
+                diagnosis medis final.
+                Wajib dikonfirmasi dan divalidasi oleh Dokter Spesialis Radiologi (Sp.Rad) sebelum digunakan sebagai
+                dasar tindakan medis.
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

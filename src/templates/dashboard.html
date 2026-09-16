@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Dashboard - NeuroCheck</title>
+    <link rel="stylesheet" href="/static/index.css">
+</head>
+
+<body>
+    {% set active = 'dashboard' %}
+    {% include "_nav.html" %}
+
+    <div class="container" style="padding:32px 24px;">
+        {% if error %}<div class="alert-info" style="background:#fdeaea;border-color:#f7c9c9;color:#b3261e;">{{ error }}
+        </div>{% endif %}
+
+        <div class="card">
+            <h2>Daftarkan Pasien Baru</h2>
+            <form method="post" action="/patients/register">
+                <div class="form-row">
+                    <div class="form-group"><label>NIK</label><input type="text" name="nik" required></div>
+                    <div class="form-group"><label>Nama</label><input type="text" name="nama" required></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Tanggal Lahir</label><input type="date" name="tanggal_lahir"
+                            required></div>
+                    <div class="form-group"><label>Jenis Kelamin</label>
+                        <select name="jenis_kelamin" required>
+                            <option value="Laki-laki">Laki-laki</option>
+                            <option value="Perempuan">Perempuan</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Alamat</label><input type="text" name="alamat"></div>
+                    <div class="form-group"><label>No. Telepon</label><input type="text" name="no_telepon"></div>
+                </div>
+                <button type="submit" class="btn btn-primary">Daftarkan Pasien</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Cari Pasien Terdaftar</h2>
+            <form method="get" action="/dashboard" class="form-row" style="margin-bottom:16px; align-items:end;">
+                <div class="form-group" style="grid-column: span 1;">
+                    <label>Cari berdasarkan NIK atau Nama</label>
+                    <input type="text" name="q" value="{{ q or '' }}" placeholder="Contoh: Markus atau 1234567890">
+                </div>
+                <div class="form-group" style="display:flex; gap:10px;">
+                    <button type="submit" class="btn btn-primary">Cari</button>
+                    {% if q %}<a href="/dashboard" class="btn btn-outline">Reset</a>{% endif %}
+                </div>
+            </form>
+            <table class="styled">
+                <tr>
+                    <th>NIK</th>
+                    <th>Nama</th>
+                    <th>Tgl Lahir</th>
+                    <th>Aksi</th>
+                </tr>
+                {% for p in patients %}
+                <tr>
+                    <td>{{ p.nik }}</td>
+                    <td>{{ p.nama }}</td>
+                    <td>{{ p.tanggal_lahir }}</td>
+                    <td><a href="/patients/{{ p.nik }}">Lihat / Upload Scan</a></td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4">Belum ada pasien terdaftar.</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+    </div>
+    <div class="footer">&copy; 2026 NeuroCheck. All rights reserved.</div>
+</body>
+
+</html>

@@ -1,0 +1,7 @@
+# Abaikan file environment & rahasia
+.env
+*.env
+
+# Abaikan cache Python
+__pycache__/
+*.pyc
