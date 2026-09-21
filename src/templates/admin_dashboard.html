@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - NeuroCheck</title>
     <link rel="stylesheet" href="/static/index.css">
 </head>
@@ -10,70 +12,82 @@
     {% set active = 'admin_dashboard' %}
     {% include "_nav.html" %}
 
-    <div class="container" style="padding:32px 24px;">
+    <div class="container" style="padding-top:24px; padding-bottom:32px;">
         {% if model_warning %}
         <div class="alert-warning">&#9888; Model AI belum siap: {{ model_warning }}</div>
         {% endif %}
 
         <div class="card">
-            <h2>Ringkasan</h2>
-            <p style="color:var(--text-muted);">Total pasien terdaftar: <strong>{{ patients|length }}</strong> | Total
+            <h2>Ringkasan Admin</h2>
+            <p style="color:var(--text-muted); margin:0;">Total pasien terdaftar: <strong>{{ patients|length }}</strong> | Total
                 pemeriksaan: <strong>{{ records|length }}</strong></p>
         </div>
         <div class="card">
             <h2>History Pemeriksaan Semua Pasien</h2>
-            <table class="styled">
-                <tr>
-                    <th>Tanggal</th>
-                    <th>NIK</th>
-                    <th>Nama Pasien</th>
-                    <th>Hasil</th>
-                    <th>Confidence</th>
-                    <th>Laporan</th>
-                </tr>
-                {% for r in records %}
-                <tr>
-                    <td>{{ r.created_at }}</td>
-                    <td>{{ r.nik }}</td>
-                    <td>{{ r.nama_pasien }}</td>
-                    <td>{{ r.prediction_label or "-" }}</td>
-                    <td>{{ "%.1f"|format(r.prediction_confidence * 100) if r.prediction_confidence else "-" }}%</td>
-                    <td>
-                        {% if r.prediction_id %}
-                        <a href="/patients/{{ r.nik }}/report/{{ r.prediction_id }}">Unduh PDF</a>
-                        {% else %}-{% endif %}
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="6">Belum ada data pemeriksaan.</td>
-                </tr>
-                {% endfor %}
-            </table>
+            <div class="table-responsive">
+                <table class="styled">
+                    <thead>
+                        <tr>
+                            <th>Tanggal</th>
+                            <th>NIK</th>
+                            <th>Nama Pasien</th>
+                            <th>Hasil</th>
+                            <th>Confidence</th>
+                            <th>Laporan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in records %}
+                        <tr>
+                            <td>{{ r.created_at }}</td>
+                            <td>{{ r.nik }}</td>
+                            <td>{{ r.nama_pasien }}</td>
+                            <td>{{ r.prediction_label or "-" }}</td>
+                            <td>{{ "%.1f"|format(r.prediction_confidence * 100) if r.prediction_confidence else "-" }}%</td>
+                            <td>
+                                {% if r.prediction_id %}
+                                <a href="/patients/{{ r.nik }}/report/{{ r.prediction_id }}" class="btn btn-outline btn-sm">Unduh PDF</a>
+                                {% else %}-{% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" style="text-align:center; color:var(--text-muted);">Belum ada data pemeriksaan.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div class="card">
             <h2>Semua Pasien Terdaftar</h2>
-            <table class="styled">
-                <tr>
-                    <th>NIK</th>
-                    <th>Nama</th>
-                    <th>Tgl Lahir</th>
-                    <th>Didaftarkan Oleh</th>
-                </tr>
-                {% for p in patients %}
-                <tr>
-                    <td>{{ p.nik }}</td>
-                    <td>{{ p.nama }}</td>
-                    <td>{{ p.tanggal_lahir }}</td>
-                    <td>{{ p.created_by_email }}</td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="4">Belum ada pasien terdaftar.</td>
-                </tr>
-                {% endfor %}
-            </table>
+            <div class="table-responsive">
+                <table class="styled">
+                    <thead>
+                        <tr>
+                            <th>NIK</th>
+                            <th>Nama</th>
+                            <th>Tgl Lahir</th>
+                            <th>Didaftarkan Oleh</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in patients %}
+                        <tr>
+                            <td>{{ p.nik }}</td>
+                            <td>{{ p.nama }}</td>
+                            <td>{{ p.tanggal_lahir }}</td>
+                            <td>{{ p.created_by_email }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" style="text-align:center; color:var(--text-muted);">Belum ada pasien terdaftar.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
     <div class="footer">&copy; 2026 NeuroCheck. All rights reserved.</div>

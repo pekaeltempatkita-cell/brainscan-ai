@@ -1,30 +1,36 @@
-# ===== Web framework =====
+# ============== Backend PRODUKSI (deploy ke Google AI Studio) ==============
+# SENGAJA TANPA torch/torchvision/timm -- itu penyebab app > 600MB.
+# Model dijalankan lewat onnxruntime (jauh lebih kecil), file .onnx-nya
+# didownload dari Hugging Face Hub saat startup (lihat src/inference.py).
+# SENGAJA TANPA jinja2/authlib/itsdangerous -- backend ini API murni (JSON),
+# tampilan ada di frontend/ terpisah (deploy ke GitHub Pages).
+
+# --- Web framework & server ---
 fastapi>=0.110.0
 uvicorn[standard]>=0.29.0
-python-multipart>=0.0.9      # wajib buat Form()/File() upload di FastAPI
-jinja2>=3.1.0
-itsdangerous>=2.1.0          # wajib buat SessionMiddleware
-
-# ===== Auth (Google OAuth) =====
-authlib>=1.3.0
-
-# ===== Config / env =====
+python-multipart>=0.0.9        # wajib buat FastAPI terima file upload (UploadFile)
 python-dotenv>=1.0.0
 
-# ===== Deep learning (inference) =====
-torch>=2.0.0
-torchvision>=0.15.0
+# --- Auth (JWT + verifikasi ID token Google, BUKAN cookie session/OAuth redirect) ---
+pyjwt>=2.8.0
+google-auth>=2.30.0
+requests>=2.31.0               # dipakai google-auth buat verifikasi token ke server Google
 
-# ===== Image processing (harus sama seperti training) =====
-opencv-python-headless>=4.8.0   # -headless: server gak punya display, lebih ringan dari opencv-python
+# --- AI text explanation ---
+google-generativeai>=0.5.0     # opsional -- fallback offline kalau kosong
+
+# --- Laporan PDF ---
+reportlab>=4.0.0
+
+# --- Inference model (ONNX, bukan torch) ---
+onnxruntime>=1.18.0
+huggingface_hub>=0.24.0
+
+# --- Preprocessing gambar (tanpa torch) ---
+opencv-python-headless>=4.8.0
 albumentations>=1.3.0
 Pillow>=10.0.0
 numpy>=1.24.0
 
-# ===== Laporan PDF =====
-reportlab>=4.1.0
-
-# ===== Penjelasan medis (Gemini) =====
-google-generativeai>=0.5.0
-transformers>=4.31.0        
-
+# --- Database (Turso di produksi, fallback SQLite lokal saat development) ---
+libsql>=0.1.0

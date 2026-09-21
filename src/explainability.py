@@ -1,96 +1,97 @@
 """
-explainability.py — Grad-CAM untuk model utama (HybridViTEfficientNet).
-Menghasilkan gambar heatmap yang menunjukkan region citra otak yang
-paling mempengaruhi keputusan model (dipakai untuk laporan & tampilan hasil).
+explainability.py — Grad-CAM (versi TORCH, LAMA).
 
-Portingan dari class GradCAM di notebook training -- targetnya sengaja
-diarahkan ke feature map CNN terakhir (bukan branch ViT) supaya heatmap-nya
-tetap punya bentuk spasial (H x W) yang gampang di-overlay ke gambar asli.
+CATATAN PENTING: sejak backend pindah ke onnxruntime (lihat inference.py),
+file ini SUDAH TIDAK DIPAKAI, karena Grad-CAM butuh gradient/backward pass
+yang tidak tersedia di onnxruntime inference session biasa. Dibiarkan di
+sini cuma buat referensi/kalau suatu saat balik pakai torch untuk serving.
+Kalau mau heatmap tetap ada di versi ONNX, opsinya pakai Score-CAM
+(gradient-free, forward-pass berkali-kali) -- minta bantuan kalau mau itu
+diimplementasikan.
 """
-import uuid
-
 import cv2
 import numpy as np
 import torch
 import torch.nn.functional as F
 
-from config import FIGURES_DIR, IMAGENET_MEAN, IMAGENET_STD
-
 
 class GradCAM:
-    """Grad-CAM generik: hook ke satu target_layer, backward dari skor kelas target."""
+    """Grad-CAM generik: cocok untuk model apapun asal ada 1 conv feature map target."""
 
     def __init__(self, model, target_layer):
         self.model = model
         self.activations = None
         self.gradients = None
-        self._fwd_handle = target_layer.register_forward_hook(self._save_activation)
-        self._bwd_handle = target_layer.register_full_backward_hook(self._save_gradient)
+        target_layer.register_forward_hook(self._save_activation)
+        target_layer.register_full_backward_hook(self._save_gradient)
 
     def _save_activation(self, module, inp, out):
         self.activations = out.detach()
 
-    def _save_gradient(self, module, grad_input, grad_output):
-        self.gradients = grad_output[0].detach()
+    def _save_gradient(self, module, grad_in, grad_out):
+        self.gradients = grad_out[0].detach()
 
-    def generate(self, input_tensor: torch.Tensor, target_class: int):
-        """input_tensor: [1, 3, H, W], sudah requires_grad tidak perlu diset manual."""
-        self.model.zero_grad()
-        output = self.model(input_tensor)
-        score = output[0, target_class]
+    def generate(self, input_tensor: torch.Tensor, class_idx: int = None):
+        """
+        Return (heatmap 0..1 shape [H,W], class_idx yang dipakai).
+        input_tensor: shape [1, 3, H, W], sudah di device yang sama dengan model.
+        """
+        self.model.zero_grad(set_to_none=True)
+        output = self.model(input_tensor)   # [1, num_classes]
+
+        if class_idx is None:
+            class_idx = int(output.argmax(dim=1).item())
+
+        score = output[0, class_idx]
         score.backward()
 
-        weights = self.gradients.mean(dim=(2, 3), keepdim=True)
-        cam = (weights * self.activations).sum(dim=1)
+        # Global-average-pool gradien per channel -> bobot pentingnya tiap channel
+        weights = self.gradients.mean(dim=(2, 3), keepdim=True)          # [1, C, 1, 1]
+        cam = (weights * self.activations).sum(dim=1, keepdim=True)      # [1, 1, h, w]
         cam = F.relu(cam)
-        cam = cam.squeeze(0).cpu().numpy()
+
+        cam = cam.squeeze().cpu().numpy()
         if cam.max() > 0:
             cam = cam / cam.max()
-        cam = cv2.resize(cam, (input_tensor.shape[-1], input_tensor.shape[-2]))
-        return cam
-
-    def remove_hooks(self):
-        self._fwd_handle.remove()
-        self._bwd_handle.remove()
+        return cam, class_idx
 
 
-def denormalize_to_uint8(tensor: torch.Tensor) -> np.ndarray:
-    """Balikin tensor yang sudah dinormalisasi ImageNet -> gambar RGB uint8 biasa."""
-    img = tensor.squeeze(0).permute(1, 2, 0).cpu().numpy()
-    img = img * np.array(IMAGENET_STD) + np.array(IMAGENET_MEAN)
-    img = np.clip(img, 0, 1)
-    return (img * 255).astype(np.uint8)
-
-
-def overlay_heatmap(image_rgb: np.ndarray, cam: np.ndarray, alpha: float = 0.45) -> np.ndarray:
-    cam_uint8 = np.uint8(255 * cam)
-    heatmap = cv2.applyColorMap(cam_uint8, cv2.COLORMAP_JET)
-    heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
-    return cv2.addWeighted(image_rgb, 1 - alpha, heatmap, alpha, 0)
-
-
-def generate_gradcam_image(model, input_tensor: torch.Tensor, target_class: int) -> str:
+def overlay_heatmap_on_image(heatmap: np.ndarray, original_rgb: np.ndarray, alpha: float = 0.45) -> np.ndarray:
     """
-    Jalankan Grad-CAM pada satu prediksi, simpan hasil overlay ke FIGURES_DIR,
-    dan return path relatif filenya (buat disimpan ke kolom gradcam_path di DB).
-
-    CATATAN: butuh gradient, jadi tensor input di sini TIDAK boleh dalam blok
-    `with torch.no_grad()` -- panggil fungsi ini terpisah dari forward pass biasa.
+    heatmap: array 2D nilai 0..1 (ukuran boleh beda dari original_rgb, akan di-resize).
+    original_rgb: array HxWx3 uint8 (RGB, BUKAN dinormalisasi).
+    Return: array HxWx3 uint8 (RGB) hasil overlay.
     """
-    target_layer = model.features[-1]  # blok konvolusi terakhir EfficientNet-B3
-    cam_engine = GradCAM(model, target_layer)
+    h, w = original_rgb.shape[:2]
+    heatmap_resized = cv2.resize(heatmap, (w, h))
+    heatmap_uint8 = np.uint8(255 * heatmap_resized)
+    heatmap_color = cv2.applyColorMap(heatmap_uint8, cv2.COLORMAP_JET)   # BGR
+    heatmap_color_rgb = cv2.cvtColor(heatmap_color, cv2.COLOR_BGR2RGB)
+
+    overlay = (original_rgb.astype(np.float32) * (1 - alpha)
+               + heatmap_color_rgb.astype(np.float32) * alpha)
+    return np.clip(overlay, 0, 255).astype(np.uint8)
+
+
+def generate_gradcam_overlay(model, input_tensor, original_rgb: np.ndarray,
+                              class_idx: int, target_layer, save_path) -> bool:
+    """
+    Hitung Grad-CAM lalu simpan hasil overlay PNG ke `save_path`.
+    Return True kalau berhasil, False kalau gagal (mis. arsitektur berubah).
+    Note: butuh gradient, jadi jangan panggil di dalam blok `torch.no_grad()`.
+    """
     try:
-        input_tensor = input_tensor.clone().requires_grad_(True)
-        cam = cam_engine.generate(input_tensor, target_class)
-    finally:
-        cam_engine.remove_hooks()
-        model.zero_grad()
-
-    base_image = denormalize_to_uint8(input_tensor.detach())
-    overlay = overlay_heatmap(base_image, cam)
-
-    filename = f"gradcam_{uuid.uuid4().hex[:12]}.png"
-    save_path = FIGURES_DIR / filename
-    cv2.imwrite(str(save_path), cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR))
-
-    return f"figures/{filename}"  # path relatif, biar gampang di-serve lewat static route
+        was_training = model.training
+        model.eval()
+        cam_tool = GradCAM(model, target_layer)
+        # requires_grad harus aktif di input buat backward jalan
+        input_tensor = input_tensor.clone().detach().requires_grad_(True)
+        heatmap, _ = cam_tool.generate(input_tensor, class_idx=class_idx)
+        overlay = overlay_heatmap_on_image(heatmap, original_rgb)
+        cv2.imwrite(str(save_path), cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR))
+        if was_training:
+            model.train()
+        return True
+    except Exception as e:
+        print(f"[GradCAM error] Gagal generate heatmap: {e}")
+        return False

@@ -10,15 +10,15 @@
     </div>
     <div class="nav-right">
         {% if request and request.session and request.session.get('admin') %}
-        <a href="/admin/logout" class="btn btn-outline">Logout Admin</a>
+        <a href="/admin/logout" class="btn btn-outline btn-sm">Logout Admin</a>
         {% elif user or (request and request.session and request.session.get('user')) %}
         {% set curr_user = user or (request.session.get('user') if request and request.session else None) %}
         {% if curr_user and curr_user.email %}
-        <span style="color:var(--text-muted); font-size:0.9rem;">{{ curr_user.email }}</span>
+        <span style="color:var(--text-muted); font-size:0.88rem; word-break:break-all;">{{ curr_user.email }}</span>
         {% endif %}
-        <a href="/auth/logout" class="btn btn-outline">Logout</a>
+        <a href="/auth/logout" class="btn btn-outline btn-sm">Logout</a>
         {% else %}
-        <a href="/admin/login" class="btn btn-outline" style="font-size:0.88rem;">Login Admin</a>
+        <a href="/admin/login" class="btn btn-outline btn-sm">Login Admin</a>
         <a href="/auth/google/login" class="btn btn-primary btn-sm">Masuk dengan Google &rarr;</a>
         {% endif %}
     </div>

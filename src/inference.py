@@ -1,63 +1,75 @@
 """
-inference.py — Muat model precheck & model utama SEKALI saat startup,
-sediakan fungsi run_pipeline() buat dipanggil dari route upload.
+inference.py — VERSI ONNX RUNTIME (tanpa torch sama sekali).
 
-PENTING: kalau file checkpoint (.pth) belum ada di outputs/checkpoints/,
-aplikasi TETAP BISA JALAN (biar UI/DB/PDF report bisa dites duluan), tapi
-run_pipeline() akan return status "model_not_ready" -- bukan crash total.
+Model .onnx di-download SEKALI dari Hugging Face Hub saat startup (di-cache
+otomatis oleh huggingface_hub di disk lokal container, jadi restart berikutnya
+gak download ulang selama cache-nya persist). Kalau file .onnx sudah ada di
+outputs/checkpoints/ (misal buat testing lokal), itu dipakai duluan tanpa
+perlu internet.
+
+CATATAN GRAD-CAM: fitur heatmap "area perhatian model" di versi torch lama
+butuh gradient (backward pass), yang TIDAK tersedia di onnxruntime inference
+session biasa. Makanya di versi ini gradcam_path SELALU None. Kalau nanti mau
+dihidupkan lagi, alternatifnya pakai Score-CAM (gradient-free, cuma butuh
+banyak forward pass) -- kasih tau saya kalau mau itu diimplementasikan.
 """
-import time
-import uuid
-
-import torch
-import torch.nn.functional as F
+import numpy as np
+import onnxruntime as ort
 
 from config import (
     MAIN_MODEL_PATH, PRECHECK_MODEL_PATH,
-    MAIN_CLASSES, PRECHECK_CLASSES, PRECHECK_THRESHOLD, DEVICE, FIGURES_DIR,
+    HF_REPO_ID, HF_PRECHECK_FILENAME, HF_MAIN_MODEL_FILENAME,
+    MAIN_CLASSES, PRECHECK_CLASSES, PRECHECK_THRESHOLD,
 )
-from models.precheck_model import PrecheckModel
-from models.classifier_model import HybridViTEfficientNet
-from preprocess import bytes_to_tensor, tensor_to_display_image
-import explainability
+from preprocess import bytes_to_array
 
-precheck_model = None
-main_model = None
+precheck_session = None
+main_session = None
 MODELS_READY = False
 MODEL_LOAD_ERROR = None
 
 
-def _load_model(model, path):
-    checkpoint = torch.load(path, map_location=DEVICE)
-    state_dict = checkpoint["model_state_dict"] if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint else checkpoint
-    model.load_state_dict(state_dict)
-    model.to(DEVICE)
-    model.eval()
-    return model
+def _softmax(x: np.ndarray) -> np.ndarray:
+    e = np.exp(x - np.max(x))
+    return e / e.sum()
+
+
+def _resolve_model_path(local_path, hf_filename):
+    """Prioritas: file lokal (outputs/checkpoints/) kalau ada -> kalau tidak,
+    download dari Hugging Face Hub (otomatis ke-cache oleh huggingface_hub)."""
+    if local_path.exists():
+        print(f"Pakai file lokal: {local_path}")
+        return str(local_path)
+
+    from huggingface_hub import hf_hub_download
+    print(f"File lokal {local_path.name} tidak ada -- download dari Hugging Face Hub "
+          f"({HF_REPO_ID}/{hf_filename}) ...")
+    return hf_hub_download(repo_id=HF_REPO_ID, filename=hf_filename)
 
 
 def load_models():
-    """Coba load kedua model. Aman dipanggil ulang (idempotent-ish)."""
-    global precheck_model, main_model, MODELS_READY, MODEL_LOAD_ERROR
+    """Coba load kedua model ONNX. Aman dipanggil ulang."""
+    global precheck_session, main_session, MODELS_READY, MODEL_LOAD_ERROR
     try:
-        print("Memuat model precheck ...")
-        precheck_model = _load_model(PrecheckModel(num_classes=len(PRECHECK_CLASSES)), PRECHECK_MODEL_PATH)
-        print("Memuat model utama (ini bisa agak lama di CPU) ...")
-        main_model = _load_model(HybridViTEfficientNet(num_classes=len(MAIN_CLASSES)), MAIN_MODEL_PATH)
+        precheck_path = _resolve_model_path(PRECHECK_MODEL_PATH, HF_PRECHECK_FILENAME)
+        print("Memuat model precheck (ONNX) ...")
+        precheck_session = ort.InferenceSession(precheck_path, providers=["CPUExecutionProvider"])
+
+        main_path = _resolve_model_path(MAIN_MODEL_PATH, HF_MAIN_MODEL_FILENAME)
+        print("Memuat model utama (ONNX) ...")
+        main_session = ort.InferenceSession(main_path, providers=["CPUExecutionProvider"])
+
         MODELS_READY = True
         MODEL_LOAD_ERROR = None
-        print("Semua model siap dipakai.")
-    except FileNotFoundError as e:
-        MODELS_READY = False
-        MODEL_LOAD_ERROR = (
-            f"File checkpoint model tidak ditemukan ({e.filename}). "
-            f"Taruh file .pth hasil training kamu di folder outputs/checkpoints/ "
-            f"dengan nama persis seperti di config.py, lalu restart server."
-        )
-        print(f"[PERINGATAN] {MODEL_LOAD_ERROR}")
+        print("Semua model ONNX siap dipakai.")
     except Exception as e:
         MODELS_READY = False
-        MODEL_LOAD_ERROR = f"Gagal memuat model: {e}"
+        MODEL_LOAD_ERROR = (
+            f"Gagal memuat model ONNX: {e}. Pastikan file .onnx ada di "
+            f"outputs/checkpoints/ ATAU sudah diupload ke Hugging Face Hub "
+            f"repo '{HF_REPO_ID}' (lihat scripts/upload_to_hf.py), dan HF_REPO_ID "
+            f"di .env sudah benar."
+        )
         print(f"[PERINGATAN] {MODEL_LOAD_ERROR}")
 
 
@@ -75,10 +87,11 @@ def run_pipeline(file_bytes: bytes, generate_heatmap: bool = True) -> dict:
             "all_probabilities": None, "gradcam_path": None,
         }
 
-    x = bytes_to_tensor(file_bytes)
+    x = bytes_to_array(file_bytes)   # numpy float32, shape [1,3,IMG_SIZE,IMG_SIZE]
+    input_name = precheck_session.get_inputs()[0].name
 
-    with torch.no_grad():
-        brain_prob = F.softmax(precheck_model(x), dim=1)[0, PRECHECK_CLASSES.index("Brain")].item()
+    precheck_logits = precheck_session.run(None, {input_name: x})[0][0]
+    brain_prob = float(_softmax(precheck_logits)[PRECHECK_CLASSES.index("Brain")])
 
     if brain_prob < PRECHECK_THRESHOLD:
         return {
@@ -88,25 +101,13 @@ def run_pipeline(file_bytes: bytes, generate_heatmap: bool = True) -> dict:
             "all_probabilities": None, "gradcam_path": None,
         }
 
-    with torch.no_grad():
-        probs = F.softmax(main_model(x), dim=1)[0].cpu().numpy()
+    main_input_name = main_session.get_inputs()[0].name
+    main_logits = main_session.run(None, {main_input_name: x})[0][0]
+    probs = _softmax(main_logits)
     idx = int(probs.argmax())
 
+    # Grad-CAM tidak tersedia di versi ONNX (butuh gradient). Lihat catatan di atas.
     gradcam_relative_path = None
-    if generate_heatmap:
-        try:
-            target_layer = main_model.features[-1]   # blok conv terakhir EfficientNet-B3
-            original_rgb = tensor_to_display_image(file_bytes)
-            filename = f"gradcam_{uuid.uuid4().hex[:10]}_{int(time.time())}.png"
-            save_path = FIGURES_DIR / filename
-            ok = explainability.generate_gradcam_overlay(
-                main_model, x, original_rgb, class_idx=idx,
-                target_layer=target_layer, save_path=save_path,
-            )
-            if ok:
-                gradcam_relative_path = filename   # disimpan relatif, gampang di-mount ke URL
-        except Exception as e:
-            print(f"[GradCAM skip] {e}")
 
     return {
         "status": "ok",

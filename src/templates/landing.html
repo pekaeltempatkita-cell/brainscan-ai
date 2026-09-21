@@ -1,8 +1,10 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 
 <head>
-    <title>NeuroCheck</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeuroCheck - Deteksi Dini Penyakit Otak</title>
     <link rel="stylesheet" href="/static/index.css">
 </head>
 
@@ -18,14 +20,13 @@
                 <p>Masuk untuk mendaftarkan pasien, unggah hasil scan otak (MRI/CT), dan dapatkan prediksi 10 jenis
                     penyakit otak dengan cepat dan akurat.</p>
                 {% if not user %}
-                <a href="/auth/google/login" class="btn btn-primary" style="margin-top:20px;">Masuk dengan Google
+                <a href="/auth/google/login" class="btn btn-primary" style="margin-top:16px;">Masuk dengan Google
                     &rarr;</a>
                 {% else %}
-                <a href="/dashboard" class="btn btn-primary" style="margin-top:20px;">Ke Dashboard &rarr;</a>
+                <a href="/dashboard" class="btn btn-primary" style="margin-top:16px;">Ke Dashboard &rarr;</a>
                 {% endif %}
             </div>
             <div class="hero-image-wrap">
-                <!-- Taruh file gambar ilustrasi otak/brain-scan di src/static/background.png -->
                 <img src="/static/background.png" alt="Ilustrasi brain scan NeuroCheck"
                     onerror="this.style.display='none'">
             </div>
@@ -36,7 +37,7 @@
         <div>
             <div class="card">
                 <h2>Cara Kerja</h2>
-                <ol style="color:var(--text-muted); line-height:1.9;">
+                <ol style="color:var(--text-muted); line-height:1.9; padding-left:20px; margin:0;">
                     <li>Masuk dengan akun Google Anda</li>
                     <li>Daftarkan atau cari data pasien</li>
                     <li>Unggah hasil scan otak pasien</li>
@@ -49,31 +50,21 @@
             <div class="card">
                 <h3>10 Kelas Penyakit Otak</h3>
                 <div class="class-list">
-                    <div class="class-item"><span class="class-badge" style="background:#3b82f6">1</span> Alzheimer Mild
-                    </div>
-                    <div class="class-item"><span class="class-badge" style="background:#8b5cf6">2</span> Alzheimer
-                        Moderate</div>
-                    <div class="class-item"><span class="class-badge" style="background:#14b8a6">3</span> Alzheimer Very
-                        Mild</div>
-                    <div class="class-item"><span class="class-badge" style="background:#f59e0b">4</span> Intracranial
-                        Hemorrhage</div>
-                    <div class="class-item"><span class="class-badge" style="background:#ec4899">5</span> Multiple
-                        Sclerosis</div>
-                    <div class="class-item"><span class="class-badge" style="background:#10b981">6</span> Normal / Sehat
-                    </div>
-                    <div class="class-item"><span class="class-badge" style="background:#f97316">7</span> Stroke Iskemik
-                    </div>
-                    <div class="class-item"><span class="class-badge" style="background:#ef4444">8</span> Tumor Glioma
-                    </div>
-                    <div class="class-item"><span class="class-badge" style="background:#db2777">9</span> Tumor
-                        Meningioma</div>
-                    <div class="class-item"><span class="class-badge" style="background:#64748b">10</span> Tumor
-                        Pituitary</div>
+                    <div class="class-item"><span class="class-badge" style="background:#3b82f6">1</span> Alzheimer Mild</div>
+                    <div class="class-item"><span class="class-badge" style="background:#8b5cf6">2</span> Alzheimer Moderate</div>
+                    <div class="class-item"><span class="class-badge" style="background:#14b8a6">3</span> Alzheimer Very Mild</div>
+                    <div class="class-item"><span class="class-badge" style="background:#f59e0b">4</span> Intracranial Hemorrhage</div>
+                    <div class="class-item"><span class="class-badge" style="background:#ec4899">5</span> Multiple Sclerosis</div>
+                    <div class="class-item"><span class="class-badge" style="background:#10b981">6</span> Normal / Sehat</div>
+                    <div class="class-item"><span class="class-badge" style="background:#f97316">7</span> Stroke Iskemik</div>
+                    <div class="class-item"><span class="class-badge" style="background:#ef4444">8</span> Tumor Glioma</div>
+                    <div class="class-item"><span class="class-badge" style="background:#db2777">9</span> Tumor Meningioma</div>
+                    <div class="class-item"><span class="class-badge" style="background:#64748b">10</span> Tumor Pituitary</div>
                 </div>
             </div>
             <div class="card">
                 <h3>Tentang Sistem</h3>
-                <p style="color:var(--text-muted); font-size:0.92rem;">Sistem ini menggunakan AI untuk membantu
+                <p style="color:var(--text-muted); font-size:0.92rem; margin:0; line-height:1.6;">Sistem ini menggunakan AI untuk membantu
                     mendeteksi kemungkinan penyakit otak dari hasil scan MRI/CT. Hasil prediksi bukan diagnosis final,
                     melainkan referensi awal yang perlu dikonfirmasi tenaga medis profesional.</p>
             </div>

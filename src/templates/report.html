@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Laporan Hasil Analisis - NeuroCheck</title>
     <link rel="stylesheet" href="/static/index.css">
 </head>
@@ -10,31 +12,30 @@
     {% set active = 'report' %}
     {% include "_nav.html" %}
 
-    <div class="container" style="padding:32px 24px; max-width:800px;">
+    <div class="container" style="padding-top:24px; padding-bottom:32px; max-width:800px;">
         <div style="margin-bottom:16px;">
             {% if request.session.admin %}
-            <a href="/admin/dashboard" class="btn btn-outline">&larr; Admin Dashboard</a>
+            <a href="/admin/dashboard" class="btn btn-outline btn-sm">&larr; Admin Dashboard</a>
             {% else %}
-            <a href="/patients/{{ r.nik }}" class="btn btn-outline">&larr; Kembali</a>
+            <a href="/patients/{{ r.nik }}" class="btn btn-outline btn-sm">&larr; Kembali</a>
             {% endif %}
         </div>
         <div class="card">
-            <h2 style="margin-bottom:0;">Laporan Hasil Skrining AI</h2>
-            <p style="color:var(--text-muted); margin-top:4px;">Citra MRI/CT Otak — NeuroCheck</p>
+            <h2 style="margin-bottom:4px;">Laporan Hasil Skrining AI</h2>
+            <p style="color:var(--text-muted); margin-top:0;">Citra MRI/CT Otak — NeuroCheck</p>
 
-            <a href="/patients/{{ r.nik }}/report/{{ r.prediction_id }}" class="btn btn-primary"
-                style="margin-top:12px; display:inline-block;">
+            <a href="/patients/{{ r.nik }}/report/{{ r.prediction_id }}" class="btn btn-primary btn-sm"
+                style="margin-top:8px; margin-bottom:16px; display:inline-flex;">
                 &darr; Unduh Laporan (PDF)
             </a>
-            <br></br>
 
             <h3>I. Identitas Pasien</h3>
-            <p>Nama: <b>{{ r.nama_pasien }}</b> | NIK: {{ r.nik }}<br>
+            <p style="word-break:break-word;">Nama: <b>{{ r.nama_pasien }}</b> | NIK: {{ r.nik }}<br>
                 Tgl Lahir: {{ r.tanggal_lahir }} | Jenis Kelamin: {{ r.jenis_kelamin }}<br>
                 Alamat: {{ r.alamat or "-" }} | Telp: {{ r.no_telepon or "-" }}</p>
 
             <h3>II. Informasi Pemeriksaan</h3>
-            <p>Tanggal Analisis: {{ r.upload_time }}<br>
+            <p style="word-break:break-word;">Tanggal Analisis: {{ r.upload_time }}<br>
                 File Citra: {{ r.filename }}<br>
                 Modalitas: {{ r.modalitas or "-" }} | Sequence/Detail: {{ r.sequence_type or "-" }}<br>
                 Precheck kualitas citra: <b>{{ "Valid — citra otak terkonfirmasi" if r.precheck_status == "valid" else
@@ -51,14 +52,17 @@
                 konfirmasi diagnosis dan rencana penanganan lebih lanjut.</p>
 
             <h3>V. Penjelasan Edukasi (AI)</h3>
-            <p>{{ r.gemini_explanation or "Penjelasan otomatis belum tersedia untuk hasil ini." }}</p>
+            <p style="line-height:1.7;">{{ r.gemini_explanation or "Penjelasan otomatis belum tersedia untuk hasil ini." }}</p>
 
             <h3>VI. Peta Atensi Model (Explainable AI / Grad-CAM)</h3>
             {% if r.gradcam_path %}
-            <img src="/outputs/{{ r.gradcam_path }}"
-                style="max-width:280px; border-radius:8px; border:1px solid var(--border-color);">
-            <p style="color:var(--text-muted); font-size:0.85rem;">Area merah/kuning menunjukkan region citra yang
-                paling memengaruhi keputusan model — alat bantu interpretasi, bukan diagnosis.</p>
+            <div style="text-align:center; background:#f8fafc; padding:16px; border-radius:12px; border:1px solid var(--border-color); margin-top:10px;">
+                <img src="/figures/{{ r.gradcam_path.replace('figures/', '') }}" alt="Citra CT-Scan / MRI dengan Heatmap Grad-CAM"
+                    style="max-width:320px; width:100%; height:auto; border-radius:10px; box-shadow:0 4px 12px rgba(15,28,63,0.12); display:inline-block;">
+                <p style="color:var(--text-muted); font-size:0.85rem; margin-top:8px; margin-bottom:0;">
+                    Area merah/kuning menunjukkan region citra CT-Scan / MRI yang paling memengaruhi keputusan model — alat bantu interpretasi, bukan diagnosis final.
+                </p>
+            </div>
             {% else %}
             <p style="color:var(--text-muted);">Peta atensi tidak tersedia untuk hasil ini.</p>
             {% endif %}
@@ -81,9 +85,8 @@
                 {% endif %}</p>
 
             <form method="post" action="/records/{{ r.id }}/verify"
-                style="margin-top:12px; border-top:1px solid var(--border-color); padding-top:16px;">
-                <p style="font-weight:600; margin-bottom:10px;">Formulir Verifikasi (diisi Dokter Sp.Rad / Penanggung
-                    Jawab)</p>
+                style="margin-top:16px; border-top:1px solid var(--border-color); padding-top:16px;">
+                <p style="font-weight:600; margin-bottom:12px;">Formulir Verifikasi (diisi Dokter Sp.Rad / Penanggung Jawab)</p>
                 <div class="form-row">
                     <div class="form-group"><label>Nama Dokter</label><input type="text" name="dokter_nama"
                             value="{{ r.dokter_nama or '' }}"></div>
@@ -101,7 +104,7 @@
                             %}selected{% endif %}>Diagnosa Dikonfirmasi oleh Dokter</option>
                     </select>
                 </div>
-                <button type="submit" class="btn btn-primary">Simpan Verifikasi</button>
+                <button type="submit" class="btn btn-primary" style="margin-top:8px;">Simpan Verifikasi</button>
             </form>
 
             <div class="alert-info" style="margin-top:20px;">

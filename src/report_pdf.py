@@ -1,9 +1,6 @@
 """
 report_pdf.py — Generate laporan hasil skrining dalam format PDF,
 supaya bisa diunduh dokter/pasien (tombol "Unduh Laporan").
-
-Pakai reportlab murni (tanpa wkhtmltopdf/weasyprint) biar gampang di-deploy
-di server mana pun tanpa dependency sistem tambahan.
 """
 import io
 from datetime import datetime

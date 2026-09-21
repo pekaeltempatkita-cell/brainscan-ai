@@ -1,11 +1,15 @@
 """
 config.py — Pusat konfigurasi aplikasi.
 Semua "angka ajaib" dan path ditaruh di sini, BUKAN di-hardcode di file lain.
+
+CATATAN VERSI ONNX: file ini SENGAJA tidak import `torch` -- backend produksi
+pakai onnxruntime, bukan torch. Kalau butuh training/export ulang model,
+jalankan scripts/export_to_onnx.py pakai venv terpisah yang ada torch-nya
+(lihat requirements-export.txt).
 """
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-import torch
 
 # --- Load file .env (isinya API key, dll -- gak ikut ke-push ke GitHub) ---
 load_dotenv()
@@ -29,9 +33,17 @@ TEMP_UPLOADS_DIR = BASE_DIR / "temp_uploads"
 for folder in [CHECKPOINTS_DIR, TEMP_UPLOADS_DIR, FIGURES_DIR, REPORTS_DIR]:
     folder.mkdir(parents=True, exist_ok=True)
 
-# --- Path checkpoint model (HASIL TRAINING KAMU, disalin manual dari Google Drive) ---
-MAIN_MODEL_PATH = CHECKPOINTS_DIR / "hybrid_vit_efficientnet_brain_best.pth"
-PRECHECK_MODEL_PATH = CHECKPOINTS_DIR / "precheck_brain_gate_best.pth"
+# --- Path checkpoint model LOKAL (opsional -- kalau kamu masih simpan .onnx
+#     lokal buat testing). Kalau tidak ada, inference.py otomatis download
+#     dari Hugging Face Hub lewat HF_REPO_ID di bawah. ---
+MAIN_MODEL_PATH = CHECKPOINTS_DIR / "hybrid_vit_efficientnet_brain.onnx"
+PRECHECK_MODEL_PATH = CHECKPOINTS_DIR / "precheck_brain_gate.onnx"
+
+# --- Hugging Face Hub (sumber utama file .onnx di produksi) ---
+# Isi repo ini dengan hasil `scripts/upload_to_hf.py`. Bisa dioverride lewat .env.
+HF_REPO_ID = os.getenv("HF_REPO_ID", "namamu/neurocheck-onnx")
+HF_PRECHECK_FILENAME = os.getenv("HF_PRECHECK_FILENAME", "precheck_brain_gate.onnx")
+HF_MAIN_MODEL_FILENAME = os.getenv("HF_MAIN_MODEL_FILENAME", "hybrid_vit_efficientnet_brain.onnx")
 
 # --- Kelas-kelas model (URUTAN HARUS SAMA PERSIS kayak pas training!) ---
 MAIN_CLASSES = [
@@ -41,10 +53,8 @@ MAIN_CLASSES = [
 ]
 PRECHECK_CLASSES = ["Non_Brain", "Brain"]
 
-# --- Konfigurasi gambar (HARUS SAMA PERSIS kayak CFG.IMG_SIZE di notebook training!) ---
-# Notebook training pakai IMG_SIZE=224. Kalau ini beda dengan training,
-# shape positional-embedding ViT tidak akan cocok dan load_state_dict() akan ERROR.
-IMG_SIZE = 300
+# --- Konfigurasi gambar (HARUS SAMA kayak training -- KONFIRMASI dulu!) ---
+IMG_SIZE = 300               # <-- masih perlu dikonfirmasi, ini final setting kamu?
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
 IMAGENET_STD = [0.229, 0.224, 0.225]
 
@@ -54,9 +64,6 @@ PRECHECK_THRESHOLD = 0.5
 # --- API Keys (dari .env, JANGAN ditulis langsung di sini) ---
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
-# --- Device (otomatis pakai GPU kalau ada, CPU kalau enggak) ---
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 # --- Info aplikasi ---
-APP_NAME = "NeuroCheck"
+APP_NAME = "Brain AI Diagnostic Assistant"
 APP_VERSION = "1.0.0"

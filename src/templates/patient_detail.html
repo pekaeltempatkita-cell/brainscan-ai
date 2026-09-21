@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ patient.nama }} - NeuroCheck</title>
     <link rel="stylesheet" href="/static/index.css">
 </head>
@@ -10,16 +12,18 @@
     {% set active = 'prediksi' %}
     {% include "_nav.html" %}
 
-    <div class="container" style="padding:32px 24px 0;">
+    <div class="container" style="padding-top:24px; padding-bottom:0;">
         <div style="margin-bottom:16px;">
-            <a href="/dashboard" class="btn btn-outline">&larr; Kembali ke Dashboard</a>
+            <a href="/dashboard" class="btn btn-outline btn-sm">&larr; Kembali ke Dashboard</a>
         </div>
         <div class="card">
-            <h2 style="margin-bottom:4px;">{{ patient.nama }}</h2>
-            <p style="color:var(--text-muted); margin:0 0 4px;">NIK: {{ patient.nik }} &nbsp;|&nbsp; Tgl Lahir: {{
-                patient.tanggal_lahir }} &nbsp;|&nbsp; {{ patient.jenis_kelamin }}</p>
-            <p style="color:var(--text-muted); margin:0;">Alamat: {{ patient.alamat or "-" }} &nbsp;|&nbsp; Telp: {{
-                patient.no_telepon or "-" }}</p>
+            <h2 style="margin-bottom:6px;">{{ patient.nama }}</h2>
+            <p style="color:var(--text-muted); margin:0 0 6px; font-size:0.92rem; word-break:break-word;">
+                NIK: {{ patient.nik }} &nbsp;|&nbsp; Tgl Lahir: {{ patient.tanggal_lahir }} &nbsp;|&nbsp; {{ patient.jenis_kelamin }}
+            </p>
+            <p style="color:var(--text-muted); margin:0; font-size:0.9rem; word-break:break-word;">
+                Alamat: {{ patient.alamat or "-" }} &nbsp;|&nbsp; Telp: {{ patient.no_telepon or "-" }}
+            </p>
         </div>
 
         {% if model_warning %}
@@ -74,7 +78,7 @@
                 </div>
             </div>
 
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+            <div class="result-grid">
                 <div class="result-section">
                     <h4>Ringkasan Temuan</h4>
                     <ul>{% for t in info.temuan %}<li>{{ t }}</li>{% endfor %}</ul>
@@ -87,8 +91,19 @@
 
             {% if pred.gradcam_path %}
             <div class="result-section">
-                <h4>Area Perhatian Model (Grad-CAM)</h4>
-                <img class="gradcam-thumb" src="/figures/{{ pred.gradcam_path }}" alt="Grad-CAM heatmap">
+                <h4 style="display:flex; align-items:center; gap:8px; margin-top:18px;">
+                    <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--primary);"></span>
+                    Visualisasi Atensi Model AI (Grad-CAM)
+                </h4>
+                <p style="color:var(--text-muted); font-size:0.85rem; margin:4px 0 12px;">
+                    Peta panas (heatmap) warna merah/kuning menunjukkan area spesifik pada citra CT-Scan / MRI yang paling memengaruhi keputusan analisis AI.
+                </p>
+                <div style="text-align:center; background:#f8fafc; padding:16px; border-radius:12px; border:1px solid var(--border-color);">
+                    <img class="gradcam-thumb" src="/figures/{{ pred.gradcam_path.replace('figures/', '') }}" alt="Citra CT-Scan / MRI dengan Heatmap Grad-CAM" style="max-width:360px; width:100%; height:auto; border-radius:10px; box-shadow:0 4px 12px rgba(15,28,63,0.12); display:inline-block;">
+                    <div style="font-size:0.82rem; color:var(--navy); font-weight:600; margin-top:10px;">
+                        [ Hasil Scan CT-Scan / MRI Pasien + Heatmap Grad-CAM ]
+                    </div>
+                </div>
             </div>
             {% endif %}
 
@@ -162,31 +177,37 @@
 
             <div class="card">
                 <h2>Rekam Medis / Riwayat Pemeriksaan</h2>
-                <table class="styled">
-                    <tr>
-                        <th>Tanggal</th>
-                        <th>Hasil</th>
-                        <th>Confidence</th>
-                        <th>Laporan</th>
-                    </tr>
-                    {% for r in records %}
-                    <tr>
-                        <td>{{ r.created_at }}</td>
-                        <td>{{ r.prediction_label or "Bukan citra otak" }}</td>
-                        <td>{{ "%.1f"|format(r.prediction_confidence * 100) if r.prediction_confidence else "-" }}%
-                        </td>
-                        <td>
-                            {% if r.prediction_id %}
-                            <a href="/patients/{{ patient.nik }}/report/{{ r.prediction_id }}">Unduh PDF</a>
-                            {% else %}-{% endif %}
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="4">Belum ada riwayat pemeriksaan.</td>
-                    </tr>
-                    {% endfor %}
-                </table>
+                <div class="table-responsive">
+                    <table class="styled">
+                        <thead>
+                            <tr>
+                                <th>Tanggal</th>
+                                <th>Hasil</th>
+                                <th>Confidence</th>
+                                <th>Laporan</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in records %}
+                            <tr>
+                                <td>{{ r.created_at }}</td>
+                                <td>{{ r.prediction_label or "Bukan citra otak" }}</td>
+                                <td>{{ "%.1f"|format(r.prediction_confidence * 100) if r.prediction_confidence else "-" }}%
+                                </td>
+                                <td>
+                                    {% if r.prediction_id %}
+                                    <a href="/patients/{{ patient.nik }}/report/{{ r.prediction_id }}" class="btn btn-outline btn-sm">Unduh PDF</a>
+                                    {% else %}-{% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" style="text-align:center; color:var(--text-muted);">Belum ada riwayat pemeriksaan.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -197,26 +218,16 @@
                     <h3 style="margin:0;">10 Kelas Penyakit Otak</h3>
                 </div>
                 <div class="class-list">
-                    <div class="class-item"><span class="class-badge" style="background:#3b82f6">1</span> Alzheimer Mild
-                    </div>
-                    <div class="class-item"><span class="class-badge" style="background:#8b5cf6">2</span> Alzheimer
-                        Moderate</div>
-                    <div class="class-item"><span class="class-badge" style="background:#14b8a6">3</span> Alzheimer Very
-                        Mild</div>
-                    <div class="class-item"><span class="class-badge" style="background:#f59e0b">4</span> Intracranial
-                        Hemorrhage</div>
-                    <div class="class-item"><span class="class-badge" style="background:#ec4899">5</span> Multiple
-                        Sclerosis</div>
-                    <div class="class-item"><span class="class-badge" style="background:#10b981">6</span> Normal / Sehat
-                    </div>
-                    <div class="class-item"><span class="class-badge" style="background:#f97316">7</span> Stroke Iskemik
-                    </div>
-                    <div class="class-item"><span class="class-badge" style="background:#ef4444">8</span> Tumor Glioma
-                    </div>
-                    <div class="class-item"><span class="class-badge" style="background:#db2777">9</span> Tumor
-                        Meningioma</div>
-                    <div class="class-item"><span class="class-badge" style="background:#64748b">10</span> Tumor
-                        Pituitary</div>
+                    <div class="class-item"><span class="class-badge" style="background:#3b82f6">1</span> Alzheimer Mild</div>
+                    <div class="class-item"><span class="class-badge" style="background:#8b5cf6">2</span> Alzheimer Moderate</div>
+                    <div class="class-item"><span class="class-badge" style="background:#14b8a6">3</span> Alzheimer Very Mild</div>
+                    <div class="class-item"><span class="class-badge" style="background:#f59e0b">4</span> Intracranial Hemorrhage</div>
+                    <div class="class-item"><span class="class-badge" style="background:#ec4899">5</span> Multiple Sclerosis</div>
+                    <div class="class-item"><span class="class-badge" style="background:#10b981">6</span> Normal / Sehat</div>
+                    <div class="class-item"><span class="class-badge" style="background:#f97316">7</span> Stroke Iskemik</div>
+                    <div class="class-item"><span class="class-badge" style="background:#ef4444">8</span> Tumor Glioma</div>
+                    <div class="class-item"><span class="class-badge" style="background:#db2777">9</span> Tumor Meningioma</div>
+                    <div class="class-item"><span class="class-badge" style="background:#64748b">10</span> Tumor Pituitary</div>
                 </div>
             </div>
 
@@ -225,7 +236,7 @@
                     <div class="card-icon-circle">&#128737;</div>
                     <h3 style="margin:0;">Tentang Sistem</h3>
                 </div>
-                <p style="color:var(--text-muted); font-size:0.9rem;">Sistem ini menggunakan model AI hybrid
+                <p style="color:var(--text-muted); font-size:0.9rem; margin:0; line-height:1.6;">Sistem ini menggunakan model AI hybrid
                     (EfficientNet + Vision Transformer) untuk membantu mendeteksi kemungkinan penyakit otak dari
                     hasil scan MRI/CT. Hasil prediksi bukan diagnosis final, melainkan referensi awal yang perlu
                     dikonfirmasi oleh tenaga medis profesional.</p>
